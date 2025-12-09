@@ -1,56 +1,63 @@
-
-/*
-
-==	common.h	==
-
-Ten plik zawiera wstepne definicje wspolnych struktur danych i stalych.
-
-Zawiera:
- - Struktura reprezentujaca stoliki('Table') i dane dzielone ('ShareData')
- - Struktura komunikatow dla klientow ('ClientMsg')
-
- - Stale konfig:
-
-	* MAX_TABLES, MAX_CLIENTSS - ...
-	* SHM_KEY - klucz do pamieci dzielonej
-	* SEM_KEY - klucz do semaforow
-	* MSG_KEY_CASHIER, MSG_KEY_SERVICE - klucze do kolejki komunikatow
-
-Struktury i klucze beda uzywane przy implementacji :
-	* pamieci wspoldzielonej
-	* semaforow systemowych
-	* komunikacji miedzyprocesowej (kolejki komunikatow)
-
-	[02.12.2025]
-
-*/
-
 #ifndef COMMON_H
 #define COMMON_H
 
+#define  _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <sys/msg.h>
+#include <signal.h>
+#include <errno.h>
+#include <time.h>
 
-#define MAX_TABLES 20
-#define MAX_CLIENTS 50
-#define SHM_KEY 0x1234		//klucz do pamieci dzielonej
-#define SEM_KEY 0x5678		//klucz do semaforow
-#define MSG_KEY_CASHIER 0x1111	//kolejka kom. do kasjera
-#define MSG_KEY_SERVICE 0x2222	//kolejka kom. do obslugi
+#define SHM_KEY 0x1001 //pam dziel
+#define SEM_KEY 0x1002 //semafor do sali
+#define MSG_KEY 0x1003 //kolejka komunikacja kierownik pracowanik
+#define KASA_KEY 0x1004	//kom klient kasjer
+
+#define MAX_TABLES 100
+#define REPORT_FILE "raport_bar.txt"
+
+#define SIG_DOUBLE_X3 SIGUSR1
+#define SIG_RESERVE   SIGUSR2
+#define SIG_FIRE      SIGRTMIN
+
+
 
 typedef struct {
-	int size;	//liczba miejc wolnych
-	int occupied;	// 0 - wolny, 1 - zajety
-	int reserved; 	//  - || -
+	int id;
+	int capacity;
+	int current_count;
+	int current_group_size;
+	int is_reserved; // 0 - nie, 1 - tak
 } Table;
 
-typedef struct {
-	long mtype;	//typ komunikatu dla kolejki komunikatow
-	int client_id;
-	int group_size;
-} ClientMsg;
 
-typedef struct {
-	int fire;	// 0 - brak, 1 - pozar
-	int X3_boost; 	// czy stoliki 3-osobowe podwojone ( 0 - nie )
+typedef struct{
+	pid_t staff_pid;
+	pid_t cashier_pid;
+	pid_t menager_pid;
+
+	int stop_simulation;	// 1 - koniec
+	int fire_alarm;		// 1 - tak
+	int table_count;
 	Table tables[MAX_TABLES];
-} SharedData;
+} BarSharedMemory;
+
+
+typedef struct{
+	long mtype;
+	int count;
+} MenagerOrderMsg;
+
+typedef struct{
+	long mtype;
+	int group_size;
+	int client_pid;
+} PaymentMsg;
+
+#endif
