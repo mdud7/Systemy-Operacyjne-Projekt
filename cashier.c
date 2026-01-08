@@ -23,7 +23,7 @@ int main() {
         }
     }
 
-    prointf("[cashier] kasa zamkneita");
+    printf("[cashier] kasa zamknieta");
     shmdt(shm);
     return 0;
 }
