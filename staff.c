@@ -1,4 +1,5 @@
 #include "common.h"
+#include <string.h>
 
 volatile sig_atomic_t flag_triple = 0;
 volatile sig_atomic_t flag_reserve = 0;
@@ -74,7 +75,8 @@ int main() {
                     }
                 }
                 sem_unlock(semid);
-                char buf[64]; sprintf(buf, "Zarezerwowano %d miejsc.", reserved_cnt);
+                char buf[64]; 
+				sprintf(buf, "Zarezerwowano %d miejsc.", reserved_cnt);
                 log_action(buf);
             }
             flag_reserve = 0;
@@ -84,7 +86,7 @@ int main() {
 		sem_lock(semid);
 
 		if (shm->x3_tripled) {
-			log_action("blad: stoliki juz zwiekszone");
+			log_action("otrzymano sygnal potrojenia ale stoliki sa juz zwiekszone");
 		} else {
 				int current_total = shm->table_count;
 				int count_x3 = 0;
@@ -111,7 +113,7 @@ int main() {
 				shm->x3_tripled = 1;
 
 				char buf[128];
-				sprintf(buf, "Potrojono stoliki 3-osobowe. Było: %d, Dodano: %d (Suma: %d).", count_x3, added, count_x3 + added);
+				sprintf(buf, "Potrojono stoliki 3-osobowe, bylo: %d, dodano: %d (suma: %d).", count_x3, added, count_x3 + added);
                 log_action(buf);
             }
 

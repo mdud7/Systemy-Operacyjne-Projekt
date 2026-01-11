@@ -10,6 +10,7 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/msg.h>
+#include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
@@ -22,7 +23,7 @@
 #define MAX_TABLES 100
 #define REPORT_FILE "raport_bar.txt"
 
-#define SIG_DOUBLE_X3 SIGUSR1
+#define SIG_TRIPLE_X3 SIGUSR1
 #define SIG_RESERVE   SIGUSR2
 #define SIG_FIRE      SIGRTMIN
 
@@ -44,6 +45,7 @@ typedef struct{
 
 	int stop_simulation;	// 1 - koniec
 	int fire_alarm;		// 1 - tak
+	int x3_tripled;
 	int table_count;
 	Table tables[MAX_TABLES];
 } BarSharedMemory;

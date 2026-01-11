@@ -1,8 +1,21 @@
 #include "common.h"
 #include <time.h>
+#include <string.h>
 
 void check(int result, const char *msg) {
     if (result == -1) { perror(msg); exit (1); }
+}
+
+void log_gen(const char* msg) {
+    FILE* f = fopen(REPORT_FILE, "a");
+    if (f) {
+        time_t now = time(NULL);
+        char *t_str = ctime(&now);
+        t_str[strlen(t_str)-1] = '\0';
+        fprintf(f, "[%s] [GENERATOR] -> %s\n", t_str, msg);
+        fclose(f);
+    }
+    printf("[GENERATOR] %s\n", msg);
 }
 
 int main() {
@@ -13,15 +26,15 @@ int main() {
 
     srand(time(NULL));
 
-    printf("[generator] rozpoczynam wpuszczanie kloientów...\n");
+    log_gen("Rozpoczynam wpuszczanie klientow.");
 
     while(1) {
             if (shm->fire_alarm) {
-                printf("[generator] pozar, nie wpuszczam ludzi\n");
+                log_gen("pożar, nie wpuszczam ludzi\n");
                 break;
             }
             if (shm->stop_simulation) {
-                printf("[generator] koniec symulacji \n");
+                log_gen(" koniec symulacji \n");
                 break;
             }
 
@@ -40,7 +53,7 @@ int main() {
             } 
             else if (pid > 0) {
                 while (waitpid(-1, NULL, WNOHANG) > 0);
-                usleep(50000 + (rand() % 1000000));
+                usleep(500000 + (rand() % 1000000));
             }
             else {
                 perror("blad fork");

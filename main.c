@@ -21,8 +21,23 @@ void setup_tables(BarSharedMemory *shm) {
     printf("[main] ustawiono %d stolikow\n", idx);
 }
 
+void log_main(const char* msg) {
+    FILE* f = fopen(REPORT_FILE, "a");
+    if (f) {
+        time_t now = time(NULL);
+        char *t_str = ctime(&now);
+        t_str[strlen(t_str)-1] = '\0';
+        fprintf(f, "[%s] [SYSTEM]   -> %s\n", t_str, msg);
+        fclose(f);
+    }
+    printf("[MAIN] %s\n", msg);
+}
+
 int main() {
-    printf("[main] start sys\n");
+    FILE *f = fopen(REPORT_FILE, "w");
+    if(f) { fprintf(f, "START SYMULACJI BARU MLECZNEGO\n"); fclose(f); }
+
+    log_main("Inicjalizacja zasobow");
 
     int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), IPC_CREAT | 0600);
     check(shmid, "main shmget");
@@ -43,11 +58,10 @@ int main() {
 
     setup_tables(shm);
 
-    FILE *f = fopen(REPORT_FILE, "w");
-    if(f) { fprintf(f, "START SYMULACJI\n"); fclose(f); }
-
     shmdt(shm);
-    
+
+    log_main("uruchamianie procesow symulacji");
+
     if (fork() == 0) { execl("./staff", "staff", NULL); exit(1); } //pracownik
 
     if (fork() == 0) { execl("./cashier", "cashier", NULL); exit(1); } //kasjer
@@ -58,11 +72,13 @@ int main() {
 
     while(wait(NULL) > 0);
 
-    printf("[main] sprzatanie zasobow\n");
+    log_main("wszystkie procesy zakonczone, sprzatanie...");
     shmctl(shmid, IPC_RMID, NULL);
     semctl(semid, 0, IPC_RMID);
     msgctl(msgid_staff, IPC_RMID, NULL);
     msgctl(msgid_kasa, IPC_RMID, NULL);
+    
+    log_main("koniec symulacji");
     
     return 0;
 }
