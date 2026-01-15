@@ -10,7 +10,6 @@ void sem_unlock(int semid) {
     semop(semid, &s, 1);
 }
 
-//log sys
 void log_client(const char* msg, int pid, int group_size)
 {
     FILE *f = fopen(REPORT_FILE, "a");
@@ -37,7 +36,7 @@ int main(int argc, char *argv[]) {
     if(shm->fire_alarm || shm->stop_simulation) { shmdt(shm); return 0; }
     
     if((rand()%100) < 5) { 
-        //log_client("weszlismy, rezygnujemy", pid, group);
+        log_client("weszlismy, rezygnujemy", pid, group);
         shmdt(shm); 
         return 0;
     }
@@ -66,7 +65,6 @@ int main(int argc, char *argv[]) {
         usleep(200000);
     }
 
-    //log sys
     if(idx == -1) { 
         log_client("Brak miejsc, wychodzimy", pid, group);
         shmdt(shm); 
@@ -74,8 +72,8 @@ int main(int argc, char *argv[]) {
     }
 
     char buf[128];
-    //sprintf(buf, "zajmujemy miejsce przy stoliku nr %d, idziemy zaplacic.", idx);
-    //log_client(buf,pid,group);
+    sprintf(buf, "zajmujemy miejsce przy stoliku nr %d, idziemy zaplacic.", idx);
+    log_client(buf,pid,group);
     
     PaymentMsg msg = {1, pid, group};
     if(msgsnd(msgid, &msg, sizeof(PaymentMsg)-sizeof(long), 0) == -1) {
@@ -85,12 +83,12 @@ int main(int argc, char *argv[]) {
 
     msgrcv(msgid, &msg, sizeof(PaymentMsg)-sizeof(long), pid, 0);
 
-    //
+    
     if(!shm->fire_alarm) {
         log_client("zaplacono, odbieramy danie od obslugi", pid, group);
     }
 
-    //
+    
     if(shm->fire_alarm) {
         sprintf(buf, "alarm, uciekamy od stolika %d, naczynia zostaly.", idx);
         log_client(buf, pid, group);
@@ -110,7 +108,7 @@ int main(int argc, char *argv[]) {
         if(shm->tables[idx].current_count == 0) shm->tables[idx].current_group_size = 0;
         sem_unlock(semid);
 
-        sprintf(buf, "posiłek skonczony, odnosimy naczynia ze stolika %d i wychodzimy.", idx);
+        sprintf(buf, "posilek skonczony, odnosimy naczynia ze stolika %d i wychodzimy.", idx);
         log_client(buf, pid, group);
     }
     shmdt(shm);

@@ -53,7 +53,7 @@ int main() {
             } 
             else if (pid > 0) {
                 while (waitpid(-1, NULL, WNOHANG) > 0);
-                usleep(500000 + (rand() % 1000000));
+                usleep(1000000 + (rand() % 1000000));
             }
             else {
                 perror("blad fork");

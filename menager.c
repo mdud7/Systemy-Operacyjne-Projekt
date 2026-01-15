@@ -22,6 +22,8 @@ int main() {
     BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
     int msgid = msgget(MSG_KEY, 0600);
 
+    int msgid_kasa = msgget(KASA_KEY, 0600);
+
     printf("[MANAGER] Czekam na pracownika.\n");
     while (shm->staff_pid == 0) sleep(1);
 
@@ -59,7 +61,7 @@ int main() {
                     MenagerOrderMsg msg;
                     msg.mtype = 1;
                     msg.count = n;
-                    msgsnd(msgid, &msg, sizeof(MenagerOrderMsg), 0);
+                    msgsnd(msgid, &msg, sizeof(MenagerOrderMsg) - sizeof(long), 0);
                     kill(shm->staff_pid, SIG_RESERVE);
                     printf("Wyslano rezerwacje na %d stolikow\n", n);
                 }
@@ -68,12 +70,21 @@ int main() {
                 log_menager("oglaszam pozar, ewakuacja");
                 shm->fire_alarm = 1;
                 kill(shm->staff_pid, SIG_FIRE);
+
+                PaymentMsg kill_msg;
+                kill_msg.mtype = MSG_END_WORK;
+                msgsnd(msgid_kasa, &kill_msg, sizeof(PaymentMsg) - sizeof(long), 0);
                 printf("pozar ogloszony");
                 running = 0;
                 break;
             case 0:
                 log_menager("zamykanie baru, normalne wyjscie");
                 shm->stop_simulation = 1;
+
+                PaymentMsg end_msg;
+                end_msg.mtype = MSG_END_WORK; 
+                msgsnd(msgid_kasa, &end_msg, sizeof(PaymentMsg) - sizeof(long), 0);
+
                 running = 0;
                 break;
         }

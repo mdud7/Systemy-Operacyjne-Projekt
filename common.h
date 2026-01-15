@@ -19,6 +19,7 @@
 #define SEM_KEY 0x1002 //semafor do sali
 #define MSG_KEY 0x1003 //kolejka komunikacja kierownik pracowanik
 #define KASA_KEY 0x1004	//kom klient kasjer
+#define MSG_END_WORK 999
 
 #define MAX_TABLES 100
 #define REPORT_FILE "raport_bar.txt"
@@ -58,8 +59,8 @@ typedef struct{
 
 typedef struct{
 	long mtype;
-	int group_size;
 	int client_pid;
+	int group_size;
 } PaymentMsg;
 
 #endif

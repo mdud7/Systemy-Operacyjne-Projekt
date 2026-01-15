@@ -25,7 +25,14 @@ int main() {
     while (!shm->stop_simulation && !shm->fire_alarm) {
         PaymentMsg msg;
 
-        if (msgrcv(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 1, IPC_NOWAIT) != -1) {
+        if (msgrcv(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0, 0) != -1) {
+            
+            if (msg.mtype == MSG_END_WORK) { 
+                printf("[KASJER] Otrzymano sygnał końca pracy. Zamykam kasę.\n");
+                log_cashier("Otrzymano rozkaz zamkniecia kasy.");
+                break;
+            }
+
             usleep(50000);
 
             char buf[128];
@@ -36,12 +43,11 @@ int main() {
 
             msg.mtype = msg.client_pid;
             msgsnd(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0);
-        } else {
-            usleep(10000);
         }
-    }
 
-    log_cashier("[cashier] kasa zamkneita");
+        log_cashier("[cashier] kasa zamkneita");
+        
+    }
     shmdt(shm);
     return 0;
 }

@@ -58,17 +58,22 @@ int main() {
 
     setup_tables(shm);
 
-    shmdt(shm);
-
     log_main("uruchamianie procesow symulacji");
 
-    if (fork() == 0) { execl("./staff", "staff", NULL); exit(1); } //pracownik
+    pid_t staff_pid = fork();
+    if (staff_pid == 0) { 
+        execl("./staff", "staff", NULL); 
+        exit(1); 
+    }
+    shm->staff_pid = staff_pid;
 
     if (fork() == 0) { execl("./cashier", "cashier", NULL); exit(1); } //kasjer
 
     if (fork() == 0) { sleep(1); execl("./generator", "generator", NULL); exit(1); } //generator
 
-    if (fork() == 0) { sleep(1); execl("./manager", "manager", NULL); exit(1); } //menager
+    if (fork() == 0) { sleep(1); execl("./menager", "menager", NULL); exit(1); } //menager
+
+    shmdt(shm);
 
     while(wait(NULL) > 0);
 
