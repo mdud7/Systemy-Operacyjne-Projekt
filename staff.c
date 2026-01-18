@@ -24,7 +24,7 @@ void log_action(const char* msg) {
 		time_t now = time(NULL);
 		char *t_str = ctime(&now);
 		t_str[strlen(t_str)-1] = '\0';
-		fprintf(f, "[%s] STAFF: %s\n", t_str, msg);
+		fprintf(f, "[%s] [STAFF]-> %s\n", t_str, msg);
 		fclose(f);
 	}
 
@@ -32,7 +32,7 @@ void log_action(const char* msg) {
 }
 
 void signal_handler(int sig) {
-	if (sig == SIG_TRIPLE_X3) {
+	if (sig == SIG_DOUBLE_X3) {
 		flag_triple = 1;
 	}
 	if ( sig == SIG_RESERVE) {
@@ -50,18 +50,18 @@ int main() {
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-	sigaction(SIG_TRIPLE_X3, &sa, NULL);
+	sigaction(SIG_DOUBLE_X3, &sa, NULL);
 	sigaction(SIG_RESERVE, &sa, NULL);
 
 	sem_lock(semid);
 	shm->staff_pid = getpid();
 	sem_unlock(semid);
 
-	log_action("obsluga gotowa, czekam na rozkaz potrojenia (X3) lub rezerwacje.");
+	log_action("obsluga gotowa, czekam na rozkaz podwojenia (X3) lub rezerwacje.");
 
 	while (1) {
-        if (shm->fire_alarm) { log_action("POZAR"); break; }
-        if (shm->stop_simulation) { log_action("Koniec."); break; }
+        if (shm->fire_alarm) { log_action("POZAR, ewakuacja"); break; }
+        if (shm->stop_simulation) { log_action("Koniec pracy."); break; }
 
 	if (flag_reserve) {
             MenagerOrderMsg msg;
@@ -86,7 +86,7 @@ int main() {
 		sem_lock(semid);
 
 		if (shm->x3_tripled) {
-			log_action("otrzymano sygnal potrojenia ale stoliki sa juz zwiekszone");
+			log_action("otrzymano sygnal podwojenia ale stoliki sa juz zwiekszone");
 		} else {
 				int current_total = shm->table_count;
 				int count_x3 = 0;
@@ -113,7 +113,7 @@ int main() {
 				shm->x3_tripled = 1;
 
 				char buf[128];
-				sprintf(buf, "Potrojono stoliki 3-osobowe, bylo: %d, dodano: %d (suma: %d).", count_x3, added, count_x3 + added);
+				sprintf(buf, "Podwojono stoliki 3-osobowe, bylo: %d, dodano: %d (suma: %d).", count_x3, added, count_x3 + added);
                 log_action(buf);
             }
 
@@ -121,7 +121,7 @@ int main() {
         	flag_triple = 0;
 		}
 
-		sleep(5);
+		usleep(100000);
 
 	}
 

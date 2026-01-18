@@ -17,7 +17,7 @@ void log_client(const char* msg, int pid, int group_size)
         time_t now = time(NULL);
         char* t_str = ctime(&now);
         t_str[strlen(t_str) -1] = '\0';
-        fprintf(f, "[%s] [KLIENT %d] (%d osob): %s\n", t_str, pid, group_size, msg);
+        fprintf(f, "[%s] [KLIENT %d]-> (grupa: %d os): %s\n", t_str, pid, group_size, msg);
         fclose(f);
     }
 }
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     if(shm->fire_alarm || shm->stop_simulation) { shmdt(shm); return 0; }
     
     if((rand()%100) < 5) { 
-        log_client("weszlismy, rezygnujemy", pid, group);
+        log_client("weszlismy, rezygnujemy (5 procent)", pid, group);
         shmdt(shm); 
         return 0;
     }
@@ -45,19 +45,21 @@ int main(int argc, char *argv[]) {
     for(int k=0; k<5; k++) {
         if(shm->fire_alarm) break;
         sem_lock(semid);
+        int start_idx = rand() % shm->table_count;
         for(int i=0; i<shm->table_count; i++) {
-            Table *t = &shm->tables[i];
+            int j = (start_idx + i) % shm->table_count;
+            Table *t = &shm->tables[j];
             if(t->is_reserved) continue;
             
             if(t->current_count == 0 && t->capacity >= group) {
                 t->current_count = group;
                 t->current_group_size = group;
-                idx = i; break;
+                idx = j; break;
             }
 
             if(t->current_group_size == group && (t->capacity - t->current_count >= group)) {
                 t->current_count += group;
-                idx = i; break;
+                idx = j; break;
             }
         }
         sem_unlock(semid);
@@ -108,8 +110,7 @@ int main(int argc, char *argv[]) {
         if(shm->tables[idx].current_count == 0) shm->tables[idx].current_group_size = 0;
         sem_unlock(semid);
 
-        sprintf(buf, "posilek skonczony, odnosimy naczynia ze stolika %d i wychodzimy.", idx);
-        log_client(buf, pid, group);
+        log_client("posilek zakonczony, wychodzimy", pid, group);
     }
     shmdt(shm);
     return 0;

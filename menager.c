@@ -11,7 +11,7 @@ void log_menager(const char* msg) {
         time_t now = time(NULL);
         char *t_str = ctime(&now);
         t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [KIEROWNIK]-> %s\n", t_str, msg);
+        fprintf(f, "[%s] [MENAGER]-> %s\n", t_str, msg);
         fclose(f);
     }
 }
@@ -32,10 +32,11 @@ int main() {
     int running = 1;
     while(running) {
         printf("\nMENU KIEROWNIKA\n");
-        printf("1 Potrój liczbę stolików 3-os (Sygnał 1)\n");
+        printf("1 Podwoj liczbę stolików 3-os (Sygnał 1)\n");
         printf("2 Rezerwacja (Wiadomość + Sygnał 2)\n");
-        printf("3 POŻAR (Ewakuacja)\n");
-        printf("0 Wyjście\n> ");
+        printf("3 POZAR (Ewakuacja)\n");
+        printf("0 Wyjście\n> \n");
+        printf("Wybrano: ");
     
         int choice;
         if (scanf("%d", &choice) != 1) { while(getchar()!='\n'); continue ;}
@@ -44,18 +45,18 @@ int main() {
 
         switch(choice) {
             case 1:
-                log_menager("wydano sygnal potrojenia");
-                kill(shm->staff_pid, SIG_TRIPLE_X3);
-                printf(" wyslano potrjoenie\n");
+                log_menager("wydano sygnal podwojenia");
+                kill(shm->staff_pid, SIG_DOUBLE_X3);
+                printf(" wyslano sygnal podwojenia\n");
                 break;
             case 2:
-                printf("Ile stolikow: ");
+                printf("Ile miejsc: ");
                 int n; 
                 scanf("%d", &n);
                 
                 if (n > 0) {
                     char buf[100];
-                    sprintf(buf, "wydano polecenie rezerwacji %d stolikow", n);
+                    sprintf(buf, "wydano polecenie rezerwacji %d miejsc", n);
                     log_menager(buf);
 
                     MenagerOrderMsg msg;
@@ -63,7 +64,7 @@ int main() {
                     msg.count = n;
                     msgsnd(msgid, &msg, sizeof(MenagerOrderMsg) - sizeof(long), 0);
                     kill(shm->staff_pid, SIG_RESERVE);
-                    printf("Wyslano rezerwacje na %d stolikow\n", n);
+                    printf("Wyslano rezerwacje na %d miejsc\n", n);
                 }
                 break;
             case 3:
@@ -74,7 +75,9 @@ int main() {
                 PaymentMsg kill_msg;
                 kill_msg.mtype = MSG_END_WORK;
                 msgsnd(msgid_kasa, &kill_msg, sizeof(PaymentMsg) - sizeof(long), 0);
-                printf("pozar ogloszony");
+                printf("[MENAGER] pozar ogloszony. Ewakuacja");
+                sleep(3);
+                log_menager("zamykam lokal");
                 running = 0;
                 break;
             case 0:
@@ -85,6 +88,7 @@ int main() {
                 end_msg.mtype = MSG_END_WORK; 
                 msgsnd(msgid_kasa, &end_msg, sizeof(PaymentMsg) - sizeof(long), 0);
 
+                printf("[MENAGER] zamykanie systemu");
                 running = 0;
                 break;
         }

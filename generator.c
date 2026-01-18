@@ -12,10 +12,9 @@ void log_gen(const char* msg) {
         time_t now = time(NULL);
         char *t_str = ctime(&now);
         t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [GENERATOR] -> %s\n", t_str, msg);
+        fprintf(f, "[%s] [GENERATOR]-> %s\n", t_str, msg);
         fclose(f);
     }
-    printf("[GENERATOR] %s\n", msg);
 }
 
 int main() {
@@ -41,7 +40,7 @@ int main() {
             pid_t pid = fork();
 
             if (pid == 0) {
-                int size = 1 + (rand() % 3);
+                int size = 1 + (rand() % 4);
 
                 char size_str[4];
                 sprintf(size_str, "%d", size);
@@ -59,7 +58,7 @@ int main() {
                 perror("blad fork");
             }
     }
-    
+    log_gen("Koniec generatora");
     shmdt(shm);
     return 0;
 }

@@ -15,16 +15,16 @@
 #include <errno.h>
 #include <time.h>
 
-#define SHM_KEY 0x1001 //pam dziel
-#define SEM_KEY 0x1002 //semafor do sali
-#define MSG_KEY 0x1003 //kolejka komunikacja kierownik pracowanik
-#define KASA_KEY 0x1004	//kom klient kasjer
+#define SHM_KEY 0x99A1 //pam dziel
+#define SEM_KEY 0x99A2 //semafor do sali
+#define MSG_KEY 0x99A3 //kolejka komunikacja kierownik pracowanik
+#define KASA_KEY 0x99A4	//kom klient kasjer
 #define MSG_END_WORK 999
 
 #define MAX_TABLES 100
 #define REPORT_FILE "raport_bar.txt"
 
-#define SIG_TRIPLE_X3 SIGUSR1
+#define SIG_DOUBLE_X3 SIGUSR1
 #define SIG_RESERVE   SIGUSR2
 #define SIG_FIRE      SIGRTMIN
 

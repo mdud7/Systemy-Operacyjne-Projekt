@@ -5,6 +5,17 @@ void check( int result, const char* msg) {
     if (result == -1) { perror(msg); exit(1); }
 }
 
+void log_main(const char* msg) {
+    FILE* f = fopen(REPORT_FILE, "a");
+    if (f) {
+        time_t now = time(NULL);
+        char *t_str = ctime(&now);
+        t_str[strlen(t_str)-1] = '\0';
+        fprintf(f, "[%s] [SYSTEM]-> %s\n", t_str, msg);
+        fclose(f);
+    }
+}
+
 void setup_tables(BarSharedMemory *shm) {
     int idx = 0;
     for (int cap = 1; cap <= 4; cap++) {
@@ -18,25 +29,16 @@ void setup_tables(BarSharedMemory *shm) {
         }
     }
     shm->table_count = idx;
-    printf("[main] ustawiono %d stolikow\n", idx);
-}
-
-void log_main(const char* msg) {
-    FILE* f = fopen(REPORT_FILE, "a");
-    if (f) {
-        time_t now = time(NULL);
-        char *t_str = ctime(&now);
-        t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [SYSTEM]   -> %s\n", t_str, msg);
-        fclose(f);
-    }
-    printf("[MAIN] %s\n", msg);
+    char buf[50];
+    sprintf(buf, "Ustawiono %d stolikow", idx);
+    log_main(buf);
 }
 
 int main() {
     FILE *f = fopen(REPORT_FILE, "w");
     if(f) { fprintf(f, "START SYMULACJI BARU MLECZNEGO\n"); fclose(f); }
 
+    printf("Start symulacji. Plik z logami 'raport_bar.txt' \n");
     log_main("Inicjalizacja zasobow");
 
     int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), IPC_CREAT | 0600);
@@ -84,6 +86,7 @@ int main() {
     msgctl(msgid_kasa, IPC_RMID, NULL);
     
     log_main("koniec symulacji");
+    printf("Koniec symulacji\n");
     
     return 0;
 }

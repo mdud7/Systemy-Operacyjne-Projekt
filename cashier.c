@@ -7,7 +7,7 @@ void log_cashier(const char* msg) {
         time_t now = time(NULL);
         char *t_str = ctime(&now);
         t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [KASJER]   -> %s\n", t_str, msg);
+        fprintf(f, "[%s] [KASJER]-> %s\n", t_str, msg);
         fclose(f);
     }
 }
@@ -20,7 +20,6 @@ int main() {
     BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
 
     log_cashier("Kasa otwarta, czekam na klientow");
-    printf("[cashier] kasa otwarta");
 
     while (!shm->stop_simulation && !shm->fire_alarm) {
         PaymentMsg msg;
@@ -28,7 +27,6 @@ int main() {
         if (msgrcv(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0, 0) != -1) {
             
             if (msg.mtype == MSG_END_WORK) { 
-                printf("[KASJER] Otrzymano sygnał końca pracy. Zamykam kasę.\n");
                 log_cashier("Otrzymano rozkaz zamkniecia kasy.");
                 break;
             }
@@ -36,7 +34,7 @@ int main() {
             usleep(50000);
 
             char buf[128];
-            sprintf(buf, "Przyjeto wplate od klienta PID %d (Grupa %d os.), wydano paragon.", msg.client_pid, msg.group_size);
+            sprintf(buf, "Przyjeto wplate od klienta PID %d (Grupa %d os.)", msg.client_pid, msg.group_size);
             log_cashier(buf);
 
             usleep(20000);
@@ -44,10 +42,8 @@ int main() {
             msg.mtype = msg.client_pid;
             msgsnd(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0);
         }
-
-        log_cashier("[cashier] kasa zamkneita");
-        
     }
+    log_cashier("Kasa zamknieta");
     shmdt(shm);
     return 0;
 }
