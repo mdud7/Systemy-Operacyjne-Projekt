@@ -1,6 +1,16 @@
 #include "common.h"
 #include <string.h>
 
+/**
+ * staff.c
+ * Proces obsługi sali.
+ *
+ * Logika działania:
+ * - Odbiór sygnałów od Menagera.
+ * - Modyfikacja tablicy stolików w pamięci dzielonej.
+ * - Synchronizacja dostępu semaforami.
+ */
+
 volatile sig_atomic_t flag_triple = 0;
 volatile sig_atomic_t flag_reserve = 0;
 
@@ -101,8 +111,8 @@ int main() {
                     			if (shm->table_count < MAX_TABLES) {
                         			int idx = shm->table_count;
                         			shm->tables[idx].id = idx;
-                        			shm->tables[idx].capacity = 3;       // 3-osobowy
-                        			shm->tables[idx].current_count = 0;  // Pusty
+                        			shm->tables[idx].capacity = 3;
+                        			shm->tables[idx].current_count = 0;
                         			shm->tables[idx].current_group_size = 0;
                         			shm->tables[idx].is_reserved = 0;
 									shm->table_count++;

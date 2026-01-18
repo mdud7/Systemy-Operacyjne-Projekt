@@ -1,6 +1,17 @@
 #include "common.h"
 #include <string.h>
 
+/**
+ * cashier.c
+ * Proces symulujący pracę kasjera.
+ *
+ * Działanie:
+ * - Odbiera komunikaty od klientów przez kolejkę komunikatów.
+ * - Symuluje czas obsługi.
+ * - Odsyła potwierdzenie wpłaty do konkretnego klienta.
+ * - Pracuje w pętli do momentu otrzymania rozkazu zamknięcia.
+ */
+
 void log_cashier(const char* msg) {
     FILE* f = fopen(REPORT_FILE, "a");
     if (f) {

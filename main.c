@@ -1,6 +1,17 @@
 #include "common.h"
 #include <string.h>
 
+/**
+ * main.c
+ * Główny proces symulacji.
+ *
+ * Zadania:
+ * 1. Inicjalizacja zasobów (Pamięć dzielona, Semafory, Kolejki).
+ * 2. Uruchomienie procesów potomnych (fork/exec):
+ *    Staff (Obsługa), Cashier (Kasa), Generator, Menager.
+ * 3. Oczekiwanie na zakończenie procesów i sprzątanie zasobów.
+ */
+
 void check( int result, const char* msg) {
     if (result == -1) { perror(msg); exit(1); }
 }
@@ -69,11 +80,11 @@ int main() {
     }
     shm->staff_pid = staff_pid;
 
-    if (fork() == 0) { execl("./cashier", "cashier", NULL); exit(1); } //kasjer
+    if (fork() == 0) { execl("./cashier", "cashier", NULL); exit(1); }
 
-    if (fork() == 0) { sleep(1); execl("./generator", "generator", NULL); exit(1); } //generator
+    if (fork() == 0) { sleep(1); execl("./generator", "generator", NULL); exit(1); }
 
-    if (fork() == 0) { sleep(1); execl("./menager", "menager", NULL); exit(1); } //menager
+    if (fork() == 0) { sleep(1); execl("./menager", "menager", NULL); exit(1); }
 
     shmdt(shm);
 

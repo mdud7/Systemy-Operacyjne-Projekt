@@ -1,6 +1,17 @@
 #include "common.h"
 #include <string.h>
 
+/**
+ * menager.c
+ * Konsola sterująca dla Kierownika.
+ *
+ * Zadanie:
+ * - Interaktywne menu dla użytkownika.
+ * - Wysyłanie sygnałów sterujących do procesu Staff (SIGUSR1, SIGUSR2, SIGRTMIN).
+ * - Zlecanie zadań przez kolejkę komunikatów (np. rezerwacje).
+ * - Awaryjne zatrzymanie systemu (Pożar).
+ */
+
 void check(int result, const char *msg) {
     if (result == -1) { perror(msg); exit(1); }
 }

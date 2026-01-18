@@ -1,6 +1,18 @@
 #include "common.h"
 #include <string.h>
 
+/**
+ * client.c
+ * Symulacja pojedynczego klienta.
+ *
+ * Cykl życia:
+ * 1. Start (z losową szansą na rezygnację 5%).
+ * 2. Wyszukanie stolika losowo.
+ * 3. Blokada semafora na czas zajmowania miejsca.
+ * 4. Komunikacja z kasą (PaymentMsg).
+ * 5. Konsumpcja i zwolnienie zasobów.
+ */
+
 void sem_lock(int semid) {
     struct sembuf s = {0, -1, 0};
     if (semop(semid, &s, 1) == -1 && errno != EINTR) perror("sem");

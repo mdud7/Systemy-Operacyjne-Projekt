@@ -2,6 +2,17 @@
 #include <time.h>
 #include <string.h>
 
+/**
+ * generator.c
+ * Proces generujący ruch w barze.
+ *
+ * Funkcje:
+ * - Cykliczne tworzenie nowych procesów klientów (fork + exec).
+ * - Losowanie wielkości grupy.
+ * - Sprzątanie po zakończonych procesach (waitpid z flagą WNOHANG),
+ *   aby uniknąć powstawania procesów zombie.
+ */
+
 void check(int result, const char *msg) {
     if (result == -1) { perror(msg); exit (1); }
 }
@@ -40,7 +51,7 @@ int main() {
             pid_t pid = fork();
 
             if (pid == 0) {
-                int size = 1 + (rand() % 4);
+                int size = 1 + (rand() % 3);
 
                 char size_str[4];
                 sprintf(size_str, "%d", size);
