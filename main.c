@@ -55,9 +55,11 @@ int main() {
     int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), IPC_CREAT | 0600);
     check(shmid, "main shmget");
 
-    int semid = semget(SEM_KEY, 1, IPC_CREAT | 0600);
+    int semid = semget(SEM_KEY, 2, IPC_CREAT | 0600);
     check(semid, "main semget");
-    semctl(semid, 0, SETVAL, 1);
+    
+    semctl(semid, SEM_ACCESS, SETVAL, 1);
+    semctl(semid, SEM_QUEUE_LIMITER, SETVAL, 20);
 
     int msgid_staff = msgget(MSG_KEY, IPC_CREAT | 0600); 
     check(msgid_staff, "main msgget staff");
@@ -79,7 +81,8 @@ int main() {
         exit(1); 
     }
     shm->staff_pid = staff_pid;
-
+    //sprawdzenie czy fork nie zwrócił -1, jesli zwrócił -1
+    //to moze zakonczyc sie dopiero po usunieci swoich danych systemowych
     if (fork() == 0) { execl("./cashier", "cashier", NULL); exit(1); }
 
     if (fork() == 0) { sleep(1); execl("./generator", "generator", NULL); exit(1); }

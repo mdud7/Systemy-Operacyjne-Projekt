@@ -14,20 +14,6 @@
 volatile sig_atomic_t flag_triple = 0;
 volatile sig_atomic_t flag_reserve = 0;
 
-void sem_lock(int semid) {
-	struct sembuf sb = {0, -1, 0};
-	if (semop(semid, &sb, 1) == -1) {
-		if (errno != EINTR) perror("sem_lock error");
-	}
-}
-
-void sem_unlock(int semid) {
-	struct sembuf sb = {0, 1, 0};
-	if (semop(semid, &sb, 1) == -1) {
-		perror("sem_unlock_error");
-	}
-}
-
 void log_action(const char* msg) {
 	FILE* f = fopen(REPORT_FILE, "a");
 	if (f) {
@@ -53,7 +39,7 @@ void signal_handler(int sig) {
 int main() {
 	int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), 0600);
 	BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
-	int semid = semget(SEM_KEY, 1, 0600);
+	int semid = semget(SEM_KEY, 2, 0600);
 	int msgid = msgget(MSG_KEY, 0600);
 
 	struct sigaction sa;
@@ -63,9 +49,9 @@ int main() {
 	sigaction(SIG_DOUBLE_X3, &sa, NULL);
 	sigaction(SIG_RESERVE, &sa, NULL);
 
-	sem_lock(semid);
+	lock_tables(semid);
 	shm->staff_pid = getpid();
-	sem_unlock(semid);
+	unlock_tables(semid);
 
 	log_action("obsluga gotowa, czekam na rozkaz podwojenia (X3) lub rezerwacje.");
 
@@ -76,7 +62,7 @@ int main() {
 	if (flag_reserve) {
             MenagerOrderMsg msg;
             while (msgrcv(msgid, &msg, sizeof(MenagerOrderMsg), 1, IPC_NOWAIT) != -1) {
-                sem_lock(semid);
+                lock_tables(semid);
                 int reserved_cnt = 0;
                 for (int i = 0; i < shm->table_count && reserved_cnt < msg.count; i++) {
                     if (shm->tables[i].current_count == 0 && !shm->tables[i].is_reserved) {
@@ -84,7 +70,7 @@ int main() {
                         reserved_cnt++;
                     }
                 }
-                sem_unlock(semid);
+                unlock_tables(semid);
                 char buf[64]; 
 				sprintf(buf, "Zarezerwowano %d miejsc.", reserved_cnt);
                 log_action(buf);
@@ -93,7 +79,7 @@ int main() {
         }
 
 	if (flag_triple) {
-		sem_lock(semid);
+		lock_tables(semid);
 
 		if (shm->x3_tripled) {
 			log_action("otrzymano sygnal podwojenia ale stoliki sa juz zwiekszone");
@@ -127,7 +113,7 @@ int main() {
                 log_action(buf);
             }
 
-			sem_unlock(semid);
+			unlock_tables(semid);
         	flag_triple = 0;
 		}
 

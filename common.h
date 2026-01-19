@@ -30,6 +30,10 @@
 #define SIG_RESERVE   SIGUSR2  // Sygnal rezerwacji miejsc
 #define SIG_FIRE      SIGRTMIN // Sygnal pozaru (priorytetowy)
 
+//       SEMAFORY
+#define SEM_ACCESS 0          // Semafor dostepu do stolikow
+#define SEM_QUEUE_LIMITER 1  // Semafor "licznik" klientow w kolejce
+
 // STRUKTURY DANYCH
 
 // Struktura pojedynczego stolika
@@ -67,4 +71,38 @@ typedef struct{
     int group_size;
 } PaymentMsg;
 
+static void sem_op(int semid, int sem_num, int op) {
+    struct sembuf s;
+    s.sem_num = sem_num;
+    s.sem_op = op;
+    s.sem_flg = 0;
+
+    while (semop(semid, &s, 1) == -1) {
+
+        if (errno == EINTR) continue;
+
+        if (errno == EIDRM || errno == EINVAL) {
+            exit(0); 
+        }
+
+        perror("semop error");
+        exit(1);
+    }
+}
+
+static void lock_tables(int semid) {
+    sem_op(semid, SEM_ACCESS, -1);
+}
+
+static void unlock_tables(int semid) {
+    sem_op(semid, SEM_ACCESS, 1);
+}
+
+static void enter_queue(int semid) {
+    sem_op(semid, SEM_QUEUE_LIMITER, -1);
+}
+
+static void leave_queue(int semid) {
+    sem_op(semid, SEM_QUEUE_LIMITER, 1);
+}
 #endif
