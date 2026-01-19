@@ -46,9 +46,14 @@ int main(int argc, char *argv[]) {
     }
 
     int idx = -1;
-    for(int k=0; k<5; k++) {
-        if(shm->fire_alarm) break;
+    int waiting = 0;
+    while(idx == -1) {
+        if(shm->fire_alarm || shm->stop_simulation) {
+            break; 
+        }
+
         lock_tables(semid);
+
         int start_idx = rand() % shm->table_count;
         for(int i=0; i<shm->table_count; i++) {
             int j = (start_idx + i) % shm->table_count;
@@ -66,13 +71,23 @@ int main(int argc, char *argv[]) {
                 idx = j; break;
             }
         }
+
         unlock_tables(semid);
+
+        
         if(idx != -1) break;
+        
+        if(waiting == 0)
+        {
+            log_client("Brak wolnych stolików, czekam na zwolnienie miejsca", pid, group);
+            waiting = 1;
+        }
+
         usleep(200000);
     }
 
     if(idx == -1) { 
-        log_client("Brak miejsc, wychodzimy", pid, group);
+        log_client("Wychodzimy(pozar/koniec)", pid, group);
         shmdt(shm); 
         return 0; 
     }
