@@ -9,7 +9,7 @@
  * 1. Start (z losową szansą na rezygnację 5%).
  * 2. Wyszukanie stolika losowo.
  * 3. Blokada semafora na czas zajmowania miejsca.
- * 4. Komunikacja z kasą (PaymentMsg).
+ * 4. Komunikacja z kasą.
  * 5. Konsumpcja i zwolnienie zasobów.
  */
 
@@ -74,8 +74,13 @@ int main(int argc, char *argv[]) {
 
         unlock_tables(semid);
 
-        
-        if(idx != -1) break;
+        if(idx != -1) {
+            if (waiting) {
+                char buf[128]; sprintf(buf, "Zwolnilo sie miejsce! Zajmuje stolik nr %d.", idx);
+                log_client(buf, pid, group);
+            }
+            break;
+        }
         
         if(waiting == 0)
         {
@@ -83,7 +88,8 @@ int main(int argc, char *argv[]) {
             waiting = 1;
         }
 
-        usleep(200000);
+        PaymentMsg signal;
+        msgrcv(msgid, &signal, sizeof(PaymentMsg)-sizeof(long), 3, 0);
     }
 
     if(idx == -1) { 
@@ -104,12 +110,13 @@ int main(int argc, char *argv[]) {
         lock_tables(semid); 
         shm->tables[idx].current_count -= group; 
         unlock_tables(semid);
+        msg.mtype = 3; 
+        msgsnd(msgid, &msg, sizeof(PaymentMsg)-sizeof(long), 0);
         shmdt(shm); 
         return 0;
     }
 
     msgrcv(msgid, &msg, sizeof(PaymentMsg)-sizeof(long), pid, 0);
-
     leave_queue(semid);
 
     if(!shm->fire_alarm) {
@@ -120,10 +127,11 @@ int main(int argc, char *argv[]) {
     if(shm->fire_alarm) {
         sprintf(buf, "alarm, uciekamy od stolika %d, naczynia zostaly.", idx);
         log_client(buf, pid, group);
-        
         lock_tables(semid); 
         shm->tables[idx].current_count -= group;
         unlock_tables(semid);
+        msg.mtype = 3;
+        msgsnd(msgid, &msg, sizeof(PaymentMsg)-sizeof(long), 0);
         shmdt(shm);
         return 0;
     }
@@ -140,6 +148,10 @@ int main(int argc, char *argv[]) {
         unlock_tables(semid);
 
         log_client("posilek zakonczony, wychodzimy", pid, group);
+    
+        PaymentMsg wake;
+        wake.mtype = 3;
+        msgsnd(msgid, &wake, sizeof(PaymentMsg)-sizeof(long), 0);
     }
     shmdt(shm);
     return 0;

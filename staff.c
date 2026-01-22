@@ -1,18 +1,19 @@
 #include "common.h"
 #include <string.h>
+#include <errno.h>
 
 /**
  * staff.c
- * Proces obsługi sali.
- *
- * Logika działania:
- * - Odbiór sygnałów od Menagera.
- * - Modyfikacja tablicy stolików w pamięci dzielonej.
- * - Synchronizacja dostępu semaforami.
+ * Proces odpowiedzialny za logikę obsługi stolików.
+ * - Monitoruje stan zajętości stolików w pamięci współdzielonej.
+ * - Obsługuje rezerwacje oraz sygnały od zarządcy.
+ * - Synchronizuje gotowość baru do otwarcia z procesem głównym.
  */
 
 volatile sig_atomic_t flag_triple = 0;
 volatile sig_atomic_t flag_reserve = 0;
+volatile sig_atomic_t flag_end = 0;
+
 
 void log_action(const char* msg) {
 	FILE* f = fopen(REPORT_FILE, "a");
@@ -28,12 +29,12 @@ void log_action(const char* msg) {
 }
 
 void signal_handler(int sig) {
-	if (sig == SIG_DOUBLE_X3) {
+	if (sig == SIG_DOUBLE_X3)
 		flag_triple = 1;
-	}
-	if ( sig == SIG_RESERVE) {
+	if (sig == SIG_RESERVE)
 		flag_reserve = 1;
-	}
+	if (sig == SIGTERM)
+		flag_end = 1;
 }
 
 int main() {
@@ -41,6 +42,7 @@ int main() {
 	BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
 	int semid = semget(SEM_KEY, 2, 0600);
 	int msgid = msgget(MSG_KEY, 0600);
+	int msgid_kasa = msgget(KASA_KEY, 0600);
 
 	struct sigaction sa;
     sa.sa_handler = signal_handler;
@@ -48,23 +50,36 @@ int main() {
     sa.sa_flags = 0;
 	sigaction(SIG_DOUBLE_X3, &sa, NULL);
 	sigaction(SIG_RESERVE, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
 
 	lock_tables(semid);
 	shm->staff_pid = getpid();
 	unlock_tables(semid);
 
+	MenagerOrderMsg ready;
+	ready.mtype = 999;
+	msgsnd(msgid, &ready, sizeof(MenagerOrderMsg) - sizeof(long), 0);
+
 	log_action("obsluga gotowa, czekam na rozkaz podwojenia (X3) lub rezerwacje.");
 
+	MenagerOrderMsg msg;
 	while (1) {
-        if (shm->fire_alarm) { log_action("POZAR, ewakuacja"); break; }
+		ssize_t result = msgrcv(msgid, &msg, sizeof(MenagerOrderMsg) - sizeof(long), 0, 0);
+
+        if (result == -1) {
+            if (errno != EINTR) 
+				break;
+        }
+        
+		if (shm->fire_alarm) { log_action("POZAR, ewakuacja"); break; }
         if (shm->stop_simulation) { log_action("Koniec pracy."); break; }
 
 	if (flag_reserve) {
-            MenagerOrderMsg msg;
-            while (msgrcv(msgid, &msg, sizeof(MenagerOrderMsg), 1, IPC_NOWAIT) != -1) {
+            MenagerOrderMsg r_msg;
+            while (msgrcv(msgid, &r_msg, sizeof(MenagerOrderMsg), 1, IPC_NOWAIT) != -1) {
                 lock_tables(semid);
                 int reserved_cnt = 0;
-                for (int i = 0; i < shm->table_count && reserved_cnt < msg.count; i++) {
+                for (int i = 0; i < shm->table_count && reserved_cnt < r_msg.count; i++) {
                     if (shm->tables[i].current_count == 0 && !shm->tables[i].is_reserved) {
                         shm->tables[i].is_reserved = 1;
                         reserved_cnt++;
@@ -76,6 +91,21 @@ int main() {
                 log_action(buf);
             }
             flag_reserve = 0;
+        }
+//
+	if (result != -1 && msg.mtype == 1) {
+            lock_tables(semid);
+            int reserved_cnt = 0;
+            for (int i = 0; i < shm->table_count && reserved_cnt < msg.count; i++) {
+                if (shm->tables[i].current_count == 0 && !shm->tables[i].is_reserved) {
+                    shm->tables[i].is_reserved = 1;
+                    reserved_cnt++;
+                }
+            }
+            unlock_tables(semid);
+            char buf[64]; 
+            sprintf(buf, "Zarezerwowano %d miejsc (msg).", reserved_cnt);
+            log_action(buf);
         }
 
 	if (flag_triple) {
@@ -111,14 +141,15 @@ int main() {
 				char buf[128];
 				sprintf(buf, "Podwojono stoliki 3-osobowe, bylo: %d, dodano: %d (suma: %d).", count_x3, added, count_x3 + added);
                 log_action(buf);
+
+				PaymentMsg wake; wake.mtype = 3;
+                for(int k=0; k<added; k++) 
+                	msgsnd(msgid_kasa, &wake, sizeof(PaymentMsg)-sizeof(long), 0);
             }
 
 			unlock_tables(semid);
         	flag_triple = 0;
 		}
-
-		usleep(100000);
-
 	}
 
 	shmdt(shm);

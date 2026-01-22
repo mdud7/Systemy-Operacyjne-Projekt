@@ -3,13 +3,9 @@
 
 /**
  * menager.c
- * Konsola sterująca dla Kierownika.
- *
- * Zadanie:
- * - Interaktywne menu dla użytkownika.
- * - Wysyłanie sygnałów sterujących do procesu Staff (SIGUSR1, SIGUSR2, SIGRTMIN).
- * - Zlecanie zadań przez kolejkę komunikatów (np. rezerwacje).
- * - Awaryjne zatrzymanie systemu (Pożar).
+ * Panel administratora do interaktywnego zarządzania barem.
+ * - Umożliwia użytkownikowi zmianę parametrów symulacji w czasie rzeczywistym.
+ * - Przesyła polecenia systemowe do pozostałych procesów.
  */
 
 void check(int result, const char *msg) {
@@ -36,7 +32,8 @@ int main() {
     int msgid_kasa = msgget(KASA_KEY, 0600);
 
     printf("[MANAGER] Czekam na pracownika.\n");
-    while (shm->staff_pid == 0) sleep(1);
+    MenagerOrderMsg ready;
+    msgrcv(msgid, &ready, sizeof(MenagerOrderMsg) - sizeof(long), 999, 0);
 
     log_menager("Panel kierownika aktywny.");
 
@@ -94,6 +91,8 @@ int main() {
             case 0:
                 log_menager("zamykanie baru, normalne wyjscie");
                 shm->stop_simulation = 1;
+
+                kill(shm->staff_pid, SIGTERM);
 
                 PaymentMsg end_msg;
                 end_msg.mtype = MSG_END_WORK; 

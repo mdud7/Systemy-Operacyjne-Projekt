@@ -9,7 +9,6 @@
  * - Odbiera komunikaty od klientów przez kolejkę komunikatów.
  * - Symuluje czas obsługi.
  * - Odsyła potwierdzenie wpłaty do konkretnego klienta.
- * - Pracuje w pętli do momentu otrzymania rozkazu zamknięcia.
  */
 
 void log_cashier(const char* msg) {
@@ -37,6 +36,11 @@ int main() {
 
         if (msgrcv(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0, 0) != -1) {
             
+            if (msg.mtype == 3) {
+                msgsnd(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0);
+                continue; 
+            }
+
             if (msg.mtype == MSG_END_WORK) { 
                 log_cashier("Otrzymano rozkaz zamkniecia kasy.");
                 break;

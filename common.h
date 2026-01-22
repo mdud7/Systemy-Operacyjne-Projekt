@@ -71,7 +71,7 @@ typedef struct{
     int group_size;
 } PaymentMsg;
 
-static void sem_op(int semid, int sem_num, int op) {
+static void sem_call(int semid, int sem_num, int op) {
     struct sembuf s;
     s.sem_num = sem_num;
     s.sem_op = op;
@@ -91,18 +91,18 @@ static void sem_op(int semid, int sem_num, int op) {
 }
 
 static void lock_tables(int semid) {
-    sem_op(semid, SEM_ACCESS, -1);
+    sem_call(semid, SEM_ACCESS, -1);
 }
 
 static void unlock_tables(int semid) {
-    sem_op(semid, SEM_ACCESS, 1);
+    sem_call(semid, SEM_ACCESS, 1);
 }
 
 static void enter_queue(int semid) {
-    sem_op(semid, SEM_QUEUE_LIMITER, -1);
+    sem_call(semid, SEM_QUEUE_LIMITER, -1);
 }
 
 static void leave_queue(int semid) {
-    sem_op(semid, SEM_QUEUE_LIMITER, 1);
+    sem_call(semid, SEM_QUEUE_LIMITER, 1);
 }
 #endif

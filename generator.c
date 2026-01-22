@@ -5,12 +5,8 @@
 /**
  * generator.c
  * Proces generujący ruch w barze.
- *
- * Funkcje:
- * - Cykliczne tworzenie nowych procesów klientów (fork + exec).
- * - Losowanie wielkości grupy.
- * - Sprzątanie po zakończonych procesach (waitpid z flagą WNOHANG),
- *   aby uniknąć powstawania procesów zombie.
+ * - Symuluje napływ klientów o zróżnicowanych rozmiarach grup.
+ * - Kontroluje natężenie ruchu w barze poprzez losowe odstępy czasu.
  */
 
 void check(int result, const char *msg) {

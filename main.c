@@ -3,14 +3,31 @@
 
 /**
  * main.c
- * Główny proces symulacji.
- *
- * Zadania:
- * 1. Inicjalizacja zasobów (Pamięć dzielona, Semafory, Kolejki).
- * 2. Uruchomienie procesów potomnych (fork/exec):
- *    Staff (Obsługa), Cashier (Kasa), Generator, Menager.
- * 3. Oczekiwanie na zakończenie procesów i sprzątanie zasobów.
+ * Główny proces zarządzający symulacją.
+ * - Inicjalizuje zasoby (pamięć współdzieloną, semafory, kolejki komunikatów).
+ * - Tworzy procesy potomne (pracowników, kasę i generator klientów).
+ * - Odpowiada za poprawne usuwanie zasobów po zakończeniu.
  */
+
+int g_shmid = -1;
+int g_semid = -1;
+int g_msg_staff = -1;
+int g_msg_kasa = -1;
+
+void my_ipc_clean(int sig) {
+    if (g_shmid != -1) shmctl(g_shmid, IPC_RMID, NULL);
+    
+    if (g_semid != -1) semctl(g_semid, 0, IPC_RMID);
+    
+    if (g_msg_staff != -1) msgctl(g_msg_staff, IPC_RMID, NULL);
+    if (g_msg_kasa != -1) msgctl(g_msg_kasa, IPC_RMID, NULL);
+    
+    kill(0, SIGTERM); 
+
+    if (sig != 0) {
+        exit(0);
+    }
+}
 
 void check( int result, const char* msg) {
     if (result == -1) { perror(msg); exit(1); }
@@ -46,28 +63,32 @@ void setup_tables(BarSharedMemory *shm) {
 }
 
 int main() {
+
+    signal(SIGINT, my_ipc_clean);
+    signal(SIGTERM, my_ipc_clean);
+
     FILE *f = fopen(REPORT_FILE, "w");
     if(f) { fprintf(f, "START SYMULACJI BARU MLECZNEGO\n"); fclose(f); }
 
     printf("Start symulacji. Plik z logami 'raport_bar.txt' \n");
     log_main("Inicjalizacja zasobow");
 
-    int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), IPC_CREAT | 0600);
-    check(shmid, "main shmget");
+    g_shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), IPC_CREAT | 0600);
+    check(g_shmid, "main shmget");
 
-    int semid = semget(SEM_KEY, 2, IPC_CREAT | 0600);
-    check(semid, "main semget");
+    g_semid = semget(SEM_KEY, 2, IPC_CREAT | 0600);
+    check(g_semid, "main semget");
     
-    semctl(semid, SEM_ACCESS, SETVAL, 1);
-    semctl(semid, SEM_QUEUE_LIMITER, SETVAL, 20);
+    semctl(g_semid, SEM_ACCESS, SETVAL, 1);
+    semctl(g_semid, SEM_QUEUE_LIMITER, SETVAL, 20);
 
-    int msgid_staff = msgget(MSG_KEY, IPC_CREAT | 0600); 
-    check(msgid_staff, "main msgget staff");
+    g_msg_staff = msgget(MSG_KEY, IPC_CREAT | 0600); 
+    check(g_msg_staff, "main msgget staff");
 
-    int msgid_kasa = msgget(KASA_KEY, IPC_CREAT | 0600);
-    check(msgid_kasa, "main msgget kasa");
+    g_msg_kasa = msgget(KASA_KEY, IPC_CREAT | 0600);
+    check(g_msg_kasa, "main msgget kasa");
 
-    BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
+    BarSharedMemory *shm = (BarSharedMemory*)shmat(g_shmid, NULL, 0);
 
     memset(shm, 0, sizeof(BarSharedMemory));
 
@@ -75,29 +96,49 @@ int main() {
 
     log_main("uruchamianie procesow symulacji");
 
-    pid_t staff_pid = fork();
-    if (staff_pid == 0) { 
-        execl("./staff", "staff", NULL); 
-        exit(1); 
+    pid_t pid;
+    
+    pid = fork();
+    if (pid == -1) { perror("Blad fork (cashier)"); exit(1); }
+    if (pid == 0) { 
+        execl("./cashier", "cashier", NULL); 
+        perror("Blad execl (cashier)"); exit(1); 
     }
-    shm->staff_pid = staff_pid;
-    //sprawdzenie czy fork nie zwrócił -1, jesli zwrócił -1
-    //to moze zakonczyc sie dopiero po usunieci swoich danych systemowych
-    if (fork() == 0) { execl("./cashier", "cashier", NULL); exit(1); }
+    shm->cashier_pid = pid;
 
-    if (fork() == 0) { sleep(1); execl("./generator", "generator", NULL); exit(1); }
+    pid = fork();
+    if (pid == -1) { perror("Blad fork (staff)"); exit(1); }
+    if (pid == 0) { 
+        execl("./staff", "staff", NULL); 
+        perror("Blad execl (staff)"); exit(1);
+    }
+    shm->staff_pid = pid;
 
-    if (fork() == 0) { sleep(1); execl("./menager", "menager", NULL); exit(1); }
+    pid = fork();
+    if (pid == -1) { perror("Blad fork (menager)"); exit(1); }
+    if (pid == 0) { 
+        execl("./menager", "menager", NULL); 
+        perror("Blad execl (menager)"); exit(1); 
+    }
+    shm->menager_pid = pid;
+    
+    MenagerOrderMsg sync_msg;
+    msgrcv(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), 999, 0);
+    msgsnd(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), 0);
+
+    pid = fork();
+    if (pid == -1) { perror("Blad fork (generator)"); exit(1); }
+    if (pid == 0) { 
+        execl("./generator", "generator", NULL); 
+        perror("Blad execl (generator)"); exit(1); 
+    }
 
     shmdt(shm);
 
     while(wait(NULL) > 0);
 
     log_main("wszystkie procesy zakonczone, sprzatanie...");
-    shmctl(shmid, IPC_RMID, NULL);
-    semctl(semid, 0, IPC_RMID);
-    msgctl(msgid_staff, IPC_RMID, NULL);
-    msgctl(msgid_kasa, IPC_RMID, NULL);
+    my_ipc_clean(0);
     
     log_main("koniec symulacji");
     printf("Koniec symulacji\n");
