@@ -16,12 +16,12 @@ int g_msg_kasa = -1;
 
 void my_ipc_clean(int sig) {
     if (g_shmid != -1) shmctl(g_shmid, IPC_RMID, NULL);
-    
+
     if (g_semid != -1) semctl(g_semid, 0, IPC_RMID);
-    
+
     if (g_msg_staff != -1) msgctl(g_msg_staff, IPC_RMID, NULL);
     if (g_msg_kasa != -1) msgctl(g_msg_kasa, IPC_RMID, NULL);
-    
+
     kill(0, SIGTERM); 
 
     if (sig != 0) {
@@ -64,8 +64,12 @@ void setup_tables(BarSharedMemory *shm) {
 
 int main() {
 
-    signal(SIGINT, my_ipc_clean);
-    signal(SIGTERM, my_ipc_clean);
+    struct sigaction sa;
+    sa.sa_handler = my_ipc_clean;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
     FILE *f = fopen(REPORT_FILE, "w");
     if(f) { fprintf(f, "START SYMULACJI BARU MLECZNEGO\n"); fclose(f); }
@@ -78,11 +82,11 @@ int main() {
 
     g_semid = semget(SEM_KEY, 2, IPC_CREAT | 0600);
     check(g_semid, "main semget");
-    
+
     semctl(g_semid, SEM_ACCESS, SETVAL, 1);
     semctl(g_semid, SEM_QUEUE_LIMITER, SETVAL, 20);
 
-    g_msg_staff = msgget(MSG_KEY, IPC_CREAT | 0600); 
+    g_msg_staff = msgget(MSG_KEY, IPC_CREAT | 0600);
     check(g_msg_staff, "main msgget staff");
 
     g_msg_kasa = msgget(KASA_KEY, IPC_CREAT | 0600);
@@ -102,7 +106,8 @@ int main() {
     if (pid == -1) { perror("Blad fork (cashier)"); exit(1); }
     if (pid == 0) { 
         execl("./cashier", "cashier", NULL); 
-        perror("Blad execl (cashier)"); exit(1); 
+        perror("Blad execl (cashier)");
+	exit(1); 
     }
     shm->cashier_pid = pid;
 
@@ -110,7 +115,8 @@ int main() {
     if (pid == -1) { perror("Blad fork (staff)"); exit(1); }
     if (pid == 0) { 
         execl("./staff", "staff", NULL); 
-        perror("Blad execl (staff)"); exit(1);
+        perror("Blad execl (staff)");
+	exit(1);
     }
     shm->staff_pid = pid;
 
@@ -118,10 +124,11 @@ int main() {
     if (pid == -1) { perror("Blad fork (menager)"); exit(1); }
     if (pid == 0) { 
         execl("./menager", "menager", NULL); 
-        perror("Blad execl (menager)"); exit(1); 
+        perror("Blad execl (menager)");
+	exit(1); 
     }
     shm->menager_pid = pid;
-    
+
     MenagerOrderMsg sync_msg;
     msgrcv(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), 999, 0);
     msgsnd(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), 0);
@@ -130,7 +137,8 @@ int main() {
     if (pid == -1) { perror("Blad fork (generator)"); exit(1); }
     if (pid == 0) { 
         execl("./generator", "generator", NULL); 
-        perror("Blad execl (generator)"); exit(1); 
+        perror("Blad execl (generator)");
+	exit(1);
     }
 
     shmdt(shm);
@@ -139,9 +147,9 @@ int main() {
 
     log_main("wszystkie procesy zakonczone, sprzatanie...");
     my_ipc_clean(0);
-    
+
     log_main("koniec symulacji");
     printf("Koniec symulacji\n");
-    
+
     return 0;
 }

@@ -24,8 +24,6 @@ void log_action(const char* msg) {
 		fprintf(f, "[%s] [STAFF]-> %s\n", t_str, msg);
 		fclose(f);
 	}
-
-	printf("[STAFF] %s\n", msg);
 }
 
 void signal_handler(int sig) {
@@ -64,7 +62,7 @@ int main() {
 
 	MenagerOrderMsg msg;
 	while (1) {
-		ssize_t result = msgrcv(msgid, &msg, sizeof(MenagerOrderMsg) - sizeof(long), 0, 0);
+		ssize_t result = msgrcv(msgid, &msg, sizeof(MenagerOrderMsg) - sizeof(long), 1, 0);
 
         if (result == -1) {
             if (errno != EINTR) 
@@ -92,7 +90,7 @@ int main() {
             }
             flag_reserve = 0;
         }
-//
+
 	if (result != -1 && msg.mtype == 1) {
             lock_tables(semid);
             int reserved_cnt = 0;

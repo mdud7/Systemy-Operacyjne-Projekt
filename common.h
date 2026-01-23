@@ -16,16 +16,16 @@
 #include <time.h>
 
 //  	KONFIGURACJA ZASOBOW
-#define SHM_KEY 0x99A1 // Pamiec dzielona
-#define SEM_KEY 0x99A2 // Zestaw semaforow
-#define MSG_KEY 0x99A3 // Kolejka Menager <-> Staff
-#define KASA_KEY 0x99A4 // Kolejka Klient <-> Kasjer
+#define SHM_KEY 0x54983A01 // Pamiec dzielona
+#define SEM_KEY 0x54983A02 // Zestaw semaforow
+#define MSG_KEY 0x54983A03 // Kolejka Menager <-> Staff
+#define KASA_KEY 0x54983A04 // Kolejka Klient <-> Kasjer
 #define MSG_END_WORK 999
 
 #define MAX_TABLES 100
 #define REPORT_FILE "raport_bar.txt"
 
-//		 SYGNAŁY STERUJĄCE
+//		 SYGNALY STERUJACE
 #define SIG_DOUBLE_X3 SIGUSR1  // Sygnal podwojenia stolikow (X3)
 #define SIG_RESERVE   SIGUSR2  // Sygnal rezerwacji miejsc
 #define SIG_FIRE      SIGRTMIN // Sygnal pozaru (priorytetowy)

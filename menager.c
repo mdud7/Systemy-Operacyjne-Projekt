@@ -31,7 +31,6 @@ int main() {
 
     int msgid_kasa = msgget(KASA_KEY, 0600);
 
-    printf("[MANAGER] Czekam na pracownika.\n");
     MenagerOrderMsg ready;
     msgrcv(msgid, &ready, sizeof(MenagerOrderMsg) - sizeof(long), 999, 0);
 
@@ -47,7 +46,16 @@ int main() {
         printf("Wybrano: ");
     
         int choice;
-        if (scanf("%d", &choice) != 1) { while(getchar()!='\n'); continue ;}
+        if (scanf("%d", &choice) != 1) {
+            while(getchar() != '\n');
+            printf("[BLAD] To nie jest liczba!\n");
+            continue;
+        }
+
+        if (choice < 0 || choice > 3) {
+            printf("[BLAD] Nie ma takiej opcji w menu (wybierz 0-3).\n");
+            continue;
+        }
     
         if (shm->fire_alarm) break;
 
@@ -60,9 +68,17 @@ int main() {
             case 2:
                 printf("Ile miejsc: ");
                 int n; 
-                scanf("%d", &n);
-                
-                if (n > 0) {
+
+                if (scanf("%d", &n) != 1) {
+                    while(getchar() != '\n');
+                    printf("[BLAD] Podaj poprawną liczbę\n");
+                    break;
+                }
+
+                if (n <= 0 || n > MAX_TABLES) {
+                    printf("[BLAD] Nieprawidlowa liczba miejsc %d\n", MAX_TABLES);
+                } 
+                else {
                     char buf[100];
                     sprintf(buf, "wydano polecenie rezerwacji %d miejsc", n);
                     log_menager(buf);

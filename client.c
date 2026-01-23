@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    sleep(1 + rand()%3);
+    usleep(1 + rand()%3);
 
     if(shm->fire_alarm) {
         sprintf(buf, "alarm, przerywamy jedzenie przy stoliku %d i wychodzimyu", idx);
