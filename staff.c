@@ -85,25 +85,10 @@ int main() {
                 }
                 unlock_tables(semid);
                 char buf[64]; 
-				sprintf(buf, "Zarezerwowano %d miejsc.", reserved_cnt);
+				sprintf(buf, "Zarezerwowano %d stolikow.", reserved_cnt);
                 log_action(buf);
             }
             flag_reserve = 0;
-        }
-
-	if (result != -1 && msg.mtype == 1) {
-            lock_tables(semid);
-            int reserved_cnt = 0;
-            for (int i = 0; i < shm->table_count && reserved_cnt < msg.count; i++) {
-                if (shm->tables[i].current_count == 0 && !shm->tables[i].is_reserved) {
-                    shm->tables[i].is_reserved = 1;
-                    reserved_cnt++;
-                }
-            }
-            unlock_tables(semid);
-            char buf[64]; 
-            sprintf(buf, "Zarezerwowano %d miejsc (msg).", reserved_cnt);
-            log_action(buf);
         }
 
 	if (flag_triple) {

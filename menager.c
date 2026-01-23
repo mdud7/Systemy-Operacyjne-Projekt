@@ -66,7 +66,7 @@ int main() {
                 printf(" wyslano sygnal podwojenia\n");
                 break;
             case 2:
-                printf("Ile miejsc: ");
+                printf("Ile stolikow: ");
                 int n; 
 
                 if (scanf("%d", &n) != 1) {
@@ -77,10 +77,11 @@ int main() {
 
                 if (n <= 0 || n > MAX_TABLES) {
                     printf("[BLAD] Nieprawidlowa liczba miejsc %d\n", MAX_TABLES);
+                    break;
                 } 
                 else {
                     char buf[100];
-                    sprintf(buf, "wydano polecenie rezerwacji %d miejsc", n);
+                    sprintf(buf, "wydano polecenie rezerwacji %d stolikow", n);
                     log_menager(buf);
 
                     MenagerOrderMsg msg;
@@ -88,7 +89,7 @@ int main() {
                     msg.count = n;
                     msgsnd(msgid, &msg, sizeof(MenagerOrderMsg) - sizeof(long), 0);
                     kill(shm->staff_pid, SIG_RESERVE);
-                    printf("Wyslano rezerwacje na %d miejsc\n", n);
+                    printf("Wyslano rezerwacje na %d stolikow\n", n);
                 }
                 break;
             case 3:

@@ -15,6 +15,12 @@
 #include <errno.h>
 #include <time.h>
 
+//      TYPY WIADOMOSCI DO KOLEJEK
+//  1 - zamownie / platnosc
+//  pid_klienta - potwierdzenie platonsoci leci do dla pid danego klienta
+//  3 - sygnal zwolnienia miejsca przy stoliku
+//  999 - synchronizacja startu
+
 //  	KONFIGURACJA ZASOBOW
 #define SHM_KEY 0x54983A01 // Pamiec dzielona
 #define SEM_KEY 0x54983A02 // Zestaw semaforow
