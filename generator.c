@@ -1,71 +1,88 @@
 #include "common.h"
-#include <time.h>
-#include <string.h>
+#include <errno.h>
 
-/**
- * generator.c
- * Proces generujący ruch w barze.
- * - Symuluje napływ klientów o zróżnicowanych rozmiarach grup.
- * - Kontroluje natężenie ruchu w barze poprzez losowe odstępy czasu.
- */
+#define WAVE_SIZE 5000
 
-void check(int result, const char *msg) {
-    if (result == -1) { perror(msg); exit (1); }
-}
+volatile sig_atomic_t flag_exit = 0;
+volatile sig_atomic_t flag_new_wave = 1;
 
-void log_gen(const char* msg) {
-    FILE* f = fopen(REPORT_FILE, "a");
-    if (f) {
-        time_t now = time(NULL);
-        char *t_str = ctime(&now);
-        t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [GENERATOR]-> %s\n", t_str, msg);
-        fclose(f);
-    }
+void handler(int sig) {
+    if (sig == SIGTERM)
+        flag_exit = 1;
+    if (sig == SIG_NEW_WAVE)
+        flag_new_wave = 1;
 }
 
 int main() {
-
-    int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), 0600);
-    check(shmid, "generator shmget");
+    key_t k_shm = get_key(PROJ_ID_SHM);
+    int shmid = shmget(k_shm, sizeof(BarSharedMemory), 0600);
     BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
+
+    shm->generator_pid = getpid();
+
+    struct sigaction sa;
+    sa.sa_handler = handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIG_NEW_WAVE, &sa, NULL);
 
     srand(time(NULL));
 
-    log_gen("Rozpoczynam wpuszczanie klientow.");
+    unsigned long long total_created = 0;
 
-    while(1) {
-            if (shm->fire_alarm) {
-                log_gen("pożar, nie wpuszczam ludzi\n");
-                break;
-            }
-            if (shm->stop_simulation) {
-                log_gen(" koniec symulacji \n");
-                break;
-            }
+    while(!flag_exit && !shm->stop_simulation) {
+        
+        if (flag_new_wave) {
+            printf("[GENERATOR] generowanie %d procesow\n", WAVE_SIZE);
+            
+            for (int i = 0; i < WAVE_SIZE; i++) {
+                if (flag_exit || shm->stop_simulation)
+                    break;
 
-            pid_t pid = fork();
-
-            if (pid == 0) {
                 int size = 1 + (rand() % 3);
 
-                char size_str[4];
-                sprintf(size_str, "%d", size);
+                pid_t pid = fork();
 
-                execl("./client", "client", size_str, NULL);
+                if (pid == 0) {
+                    char size_str[2];
+                    size_str[0] = size + '0'; size_str[1] = '\0';
+                    execl("./client", "client", size_str, NULL);
+                    _exit(1);
+                } else if (pid > 0) {
+                    total_created++;
+                } else {
+                    if (errno != EAGAIN) perror("fork");
+                }
+                waitpid(-1, NULL, WNOHANG);
+            }
+            
+            flag_new_wave = 0;
+            printf("[GENERATOR] generowanie zakonczone, lacznie: %llu.\n", total_created);
+        }
 
-                perror("Blad execl w generatorze");
-                exit (1);
-            } 
-            else if (pid > 0) {
-                while (waitpid(-1, NULL, WNOHANG) > 0);
-                usleep(1000000 + (rand() % 1000000));
+        pid_t wpid = waitpid(-1, NULL, 0);
+
+        if (wpid > 0) {
+            continue;
+        }
+
+        if (wpid == -1) {
+            if (errno == ECHILD) {
+                pause();
+            }
+            else if (errno == EINTR) {
+                continue;
             }
             else {
-                perror("blad fork");
+                perror("waitpid");
+                break;
             }
+        }
     }
-    log_gen("Koniec generatora");
+
+    printf("[GENERATOR] stop.\n");
+    while(wait(NULL) > 0);
     shmdt(shm);
     return 0;
 }

@@ -1,64 +1,37 @@
 #include "common.h"
 #include <string.h>
 
-/**
- * cashier.c
- * Proces symulujący pracę kasjera.
- *
- * Działanie:
- * - Odbiera komunikaty od klientów przez kolejkę komunikatów.
- * - Symuluje czas obsługi.
- * - Odsyła potwierdzenie wpłaty do konkretnego klienta.
- */
-
 void log_cashier(const char* msg) {
     FILE* f = fopen(REPORT_FILE, "a");
     if (f) {
         time_t now = time(NULL);
-        char *t_str = ctime(&now);
-        t_str[strlen(t_str)-1] = '\0';
+        char *t_str = ctime(&now); t_str[strlen(t_str)-1] = '\0';
         fprintf(f, "[%s] [KASJER]-> %s\n", t_str, msg);
         fclose(f);
     }
 }
 
 int main() {
-    int msgid = msgget(KASA_KEY, 0600);
-    if (msgid == -1) { perror("cashier msgget"); exit(1); }
-    
-    int shmid = shmget(SHM_KEY, sizeof(BarSharedMemory), 0600);
+    key_t k_shm = get_key(PROJ_ID_SHM);
+    key_t k_kasa = get_key(PROJ_ID_KASA);
+
+    int msgid = msgget(k_kasa, 0600);
+    int shmid = shmget(k_shm, sizeof(BarSharedMemory), 0600);
     BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
 
-    log_cashier("Kasa otwarta, czekam na klientow");
+    log_cashier("Kasa gotowa.");
 
+    PaymentMsg msg;
     while (!shm->stop_simulation && !shm->fire_alarm) {
-        PaymentMsg msg;
-
-        if (msgrcv(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0, 0) != -1) {
-            
-            if (msg.mtype == 3) {
-                msgsnd(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0);
-                continue; 
-            }
-
-            if (msg.mtype == MSG_END_WORK) { 
-                log_cashier("Otrzymano rozkaz zamkniecia kasy.");
-                break;
-            }
-
-            usleep(50000);
-
-            char buf[128];
-            sprintf(buf, "Przyjeto wplate od klienta PID %d (Grupa %d os.)", msg.client_pid, msg.group_size);
-            log_cashier(buf);
-
-            usleep(20000);
-
-            msg.mtype = msg.client_pid;
-            msgsnd(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0);
+        
+        if (msgrcv(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), MSG_TYPE_PAYMENT, 0) == -1) {
+            break;
         }
+
+        msg.mtype = msg.client_pid;
+        msgsnd(msgid, &msg, sizeof(PaymentMsg) - sizeof(long), 0);
     }
-    log_cashier("Kasa zamknieta");
+
     shmdt(shm);
     return 0;
 }

@@ -11,70 +11,69 @@
 #include <sys/sem.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
+#include <sys/stat.h> 
+#include <fcntl.h>    
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
+#include <pthread.h>
+#include <string.h>
 
-//      TYPY WIADOMOSCI DO KOLEJEK
-//  1 - zamownie / platnosc
-//  pid_klienta - potwierdzenie platonsoci leci do dla pid danego klienta
-//  3 - sygnal zwolnienia miejsca przy stoliku
-//  999 - synchronizacja startu
+#define FTOK_PATH "."
+#define PROJ_ID_SHM 1
+#define PROJ_ID_SEM 2
+#define PROJ_ID_MSG 3
+#define PROJ_ID_KASA 4
 
-//  	KONFIGURACJA ZASOBOW
-#define SHM_KEY 0x54983A01 // Pamiec dzielona
-#define SEM_KEY 0x54983A02 // Zestaw semaforow
-#define MSG_KEY 0x54983A03 // Kolejka Menager <-> Staff
-#define KASA_KEY 0x54983A04 // Kolejka Klient <-> Kasjer
-#define MSG_END_WORK 999
-
-#define MAX_TABLES 100
+#define FIFO_FILE "kitchen_stats_fifo"
 #define REPORT_FILE "raport_bar.txt"
 
-//		 SYGNALY STERUJACE
-#define SIG_DOUBLE_X3 SIGUSR1  // Sygnal podwojenia stolikow (X3)
-#define SIG_RESERVE   SIGUSR2  // Sygnal rezerwacji miejsc
-#define SIG_FIRE      SIGRTMIN // Sygnal pozaru (priorytetowy)
+#define MAX_TABLES 100
+#define MSG_END_WORK 999
 
-//       SEMAFORY
-#define SEM_ACCESS 0          // Semafor dostepu do stolikow
-#define SEM_QUEUE_LIMITER 1  // Semafor "licznik" klientow w kolejce
+#define SIG_DOUBLE_X3 SIGUSR1 
+#define SIG_RESERVE   SIGUSR2
+#define SIG_FIRE      SIGRTMIN
+#define SIG_NEW_WAVE  SIGRTMIN+1
 
-// STRUKTURY DANYCH
+#define SEM_ACCESS 0         
+#define SEM_QUEUE_LIMITER 1  
+#define SEM_BARRIER 2        
+#define SEM_COUNT 3          
 
-// Struktura pojedynczego stolika
+#define MSG_TYPE_PAYMENT 1     
+#define MSG_TYPE_ORDER_FOOD 2  
+#define MSG_TYPE_FREE_TABLE 3  
+
 typedef struct {
     int id;
-    int capacity;           // Pojemnosc: 1, 2, 3 lub 4 osoby
-    int current_count;      // Aktualna liczba osob
-    int current_group_size; // Rozmiar grupy zajmujacej stolik
-    int is_reserved;        // 0 - wolny, 1 - zarezerwowany przez Menagera
+    int capacity;
+    int current_count;
+    int current_group_size;
+    int is_reserved;
 } Table;
 
-// Glowna struktura pamieci dzielonej
 typedef struct{
     pid_t staff_pid;
     pid_t cashier_pid;
     pid_t menager_pid;
-
-    int stop_simulation;    // Flaga 1 konczy dzialanie wszystkich procesow
-    int fire_alarm;         // Flaga 1 = ewakuacja
-    int x3_tripled;         // Flaga czy wykonano juz podwojenie stolikow
-    int table_count;        // Aktualna calkowita liczba stolikow
+    pid_t generator_pid;
+    int stop_simulation;
+    int fire_alarm;
+    int x3_tripled;
+    int table_count;
     Table tables[MAX_TABLES];
 } BarSharedMemory;
 
-// Komunikat Menager -> Staff (Rezerwacja)
 typedef struct{
     long mtype;
-    int count; 		// Liczba miejsc do rezerwacji
+    int count;
 } MenagerOrderMsg;
 
-// Komunikat Klient -> Kasjer (Platnosc)
 typedef struct{
     long mtype;
     int client_pid;
-    int group_size;
+    int group_size; 
 } PaymentMsg;
 
 static void sem_call(int semid, int sem_num, int op) {
@@ -82,33 +81,28 @@ static void sem_call(int semid, int sem_num, int op) {
     s.sem_num = sem_num;
     s.sem_op = op;
     s.sem_flg = 0;
-
     while (semop(semid, &s, 1) == -1) {
-
-        if (errno == EINTR) continue;
-
-        if (errno == EIDRM || errno == EINVAL) {
-            exit(0); 
-        }
-
+        if (errno == EINTR)
+            continue;
+        if (errno == EIDRM || errno == EINVAL)
+            exit(0);
         perror("semop error");
         exit(1);
     }
 }
 
-static void lock_tables(int semid) {
-    sem_call(semid, SEM_ACCESS, -1);
+static void lock_tables(int semid) { sem_call(semid, SEM_ACCESS, -1); }
+static void unlock_tables(int semid) { sem_call(semid, SEM_ACCESS, 1); }
+static void enter_queue(int semid) { sem_call(semid, SEM_QUEUE_LIMITER, -1); }
+static void leave_queue(int semid) { sem_call(semid, SEM_QUEUE_LIMITER, 1); }
+
+static key_t get_key(int proj_id) {
+    key_t key = ftok(FTOK_PATH, proj_id);
+    if (key == -1) {
+        perror("ftok error");
+        exit(1);
+    }
+    return key;
 }
 
-static void unlock_tables(int semid) {
-    sem_call(semid, SEM_ACCESS, 1);
-}
-
-static void enter_queue(int semid) {
-    sem_call(semid, SEM_QUEUE_LIMITER, -1);
-}
-
-static void leave_queue(int semid) {
-    sem_call(semid, SEM_QUEUE_LIMITER, 1);
-}
 #endif
