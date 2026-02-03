@@ -1,7 +1,7 @@
 #!/bin/bash
 rm -f raport_bar.txt
 
-(sleep 2; echo "5"; sleep 60; echo "0") | ./main > /dev/null & PID=$!
+(sleep 15; echo "0") | ./main > /dev/null & PID=$!
 wait $PID
 
 IN=$(grep -a "Wchodze do baru jako proces" raport_bar.txt | wc -l)
