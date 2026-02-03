@@ -1,8 +1,6 @@
 #include "common.h"
 #include <errno.h>
 
-#define WAVE_SIZE 5000
-
 volatile sig_atomic_t flag_exit = 0;
 volatile sig_atomic_t flag_new_wave = 1;
 

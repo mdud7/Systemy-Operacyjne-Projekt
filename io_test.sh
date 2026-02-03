@@ -1,24 +1,20 @@
 #!/bin/bash
-
-killall -9 main staff menager cashier generator client 2>/dev/null
 rm -f raport_bar.txt
 
-echo "Symulacja baru (15 sekund)..."
+(sleep 2; echo "5"; sleep 60; echo "0") | ./main > /dev/null & PID=$!
+wait $PID
 
-(sleep 15; echo "0") | ./main > /dev/null 2>&1 &
+IN=$(grep -a "Wchodze do baru jako proces" raport_bar.txt | wc -l)
+OUT_RESIGN=$(grep -a "Rezygnacja na wejsciu" raport_bar.txt | wc -l)
+OUT_SUCCESS=$(grep -a "skonczyla jesc, wychodzimy" raport_bar.txt | wc -l)
 
-sleep 15
+TOTAL_OUT=$((OUT_RESIGN + OUT_SUCCESS))
 
-pkill -u $(whoami) -f generator
-killall -u $(whoami) -9 main staff menager cashier client 2>/dev/null
+echo "Weszlo: $IN"
+echo "Wyszlo: $TOTAL_OUT (Rezygnacja: $OUT_RESIGN, Sukces: $OUT_SUCCESS)"
 
-IN=$(grep -c "zajmujemy" raport_bar.txt)
-OUT=$(grep -c -E "wychodzimy|wyszlo" raport_bar.txt)
-
-echo "Statystyki: Weszlo: $IN | Wyszlo: $OUT"
-
-if [ "$IN" -eq "$OUT" ] && [ "$IN" -gt 0 ]; then
-    echo "OK"
+if [ "$IN" -eq "$TOTAL_OUT" ] && [ "$IN" -gt 0 ]; then
+    echo "test zaliczony: bilans sie zgadza."
 else
-    echo "ZLE"
+    echo "test niezaliczony: Bilans nierowny."
 fi

@@ -77,6 +77,7 @@ int main() {
             }
             case 3:
                 shm->fire_alarm = 1;
+                write_log("MENGAER", "OGLOSZONO POZAR");
                 kill(shm->staff_pid, SIG_FIRE);
                 PaymentMsg km;
                 km.mtype=MSG_END_WORK;

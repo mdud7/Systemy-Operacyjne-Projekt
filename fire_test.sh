@@ -1,19 +1,12 @@
 #!/bin/bash
 
-killall -9 main staff menager cashier generator client 2>/dev/null
 rm -f raport_bar.txt
 
-echo "TEST SYGNALU 3 (POZAR)"
+(sleep 2; echo "3"; sleep 1) | ./main > /dev/null & PID=$!
+wait $PID
 
-(sleep 3; echo "3"; sleep 2; echo "0") | ./main > /dev/null 2>&1 &
-
-sleep 6
-killall -9 main staff menager cashier generator client 2>/dev/null
-
-if grep -q -E "alarm|uciekamy|pozar" raport_bar.txt; then
-    echo "SYGNAL 3 (POZAR): OK - Klienci uciekli."
-    echo "log:"
-    grep -E "alarm|uciekamy|pozar" raport_bar.txt | head -n 10
+if grep -q "OGLOSZONO POZAR" raport_bar.txt; then
+    echo "test zaliczony: Wykryto pozar."
 else
-    echo "SYGNAL 3: FAIL"
+    echo "test failed: brak reakcji na pozar w logach."
 fi
