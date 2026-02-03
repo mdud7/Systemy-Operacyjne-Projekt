@@ -28,6 +28,9 @@ int main() {
     int msgid_kasa = msgget(k_kasa, 0600);
 
     int fifo_fd = open(FIFO_FILE, O_RDWR | O_NONBLOCK);
+    if (fifo_fd == -1) {
+        perror("STAFF: Nie udalo sie otworzyc FIFO");
+    }
 
     struct sigaction sa;
     sa.sa_handler = signal_handler;
