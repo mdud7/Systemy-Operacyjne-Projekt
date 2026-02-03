@@ -27,16 +27,6 @@ void check(int result, const char* msg) {
     }
 }
 
-void log_main(const char* msg) {
-    FILE* f = fopen(REPORT_FILE, "a");
-    if (f) {
-        time_t now = time(NULL);
-        char *t_str = ctime(&now); t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [SYSTEM]-> %s\n", t_str, msg);
-        fclose(f);
-    }
-}
-
 void setup_tables(BarSharedMemory *shm) {
     int idx = 0;
     for (int cap = 1; cap <= 4; cap++) {
@@ -50,7 +40,6 @@ void setup_tables(BarSharedMemory *shm) {
         }
     }
     shm->table_count = idx;
-    log_main("Stoliki ustawione.");
 }
 
 int main() {
@@ -61,10 +50,11 @@ int main() {
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
 
-    FILE *f = fopen(REPORT_FILE, "w");
-    if(f) {
-        fprintf(f, "START SYMULACJI\n");
-        fclose(f);
+    int log_fd = open(REPORT_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (log_fd != -1) {
+        char *header = "START SYMULACJI\n";
+        write(log_fd, header, strlen(header));
+        close(log_fd);
     }
 
     printf("Start symulacji. Log: %s\n", REPORT_FILE);
@@ -84,7 +74,6 @@ int main() {
     
     semctl(g_semid, SEM_ACCESS, SETVAL, 1);
     semctl(g_semid, SEM_QUEUE_LIMITER, SETVAL, 5000);
-    semctl(g_semid, SEM_BARRIER, SETVAL, 0);
 
     g_msg_staff = msgget(k_msg, IPC_CREAT | 0600);
     g_msg_kasa = msgget(k_kasa, IPC_CREAT | 0600);
@@ -115,7 +104,7 @@ int main() {
     shm->menager_pid = pid;
 
     MenagerOrderMsg sync_msg;
-    msgrcv(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), 999, 0);
+    msgrcv(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), MSG_READY_SYNC, 0);
     msgsnd(g_msg_staff, &sync_msg, sizeof(MenagerOrderMsg) - sizeof(long), 0);
 
     pid = fork();

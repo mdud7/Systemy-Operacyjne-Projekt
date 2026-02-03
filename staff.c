@@ -6,16 +6,6 @@ volatile sig_atomic_t flag_triple = 0;
 volatile sig_atomic_t flag_reserve = 0;
 volatile sig_atomic_t flag_end = 0;
 
-void log_action(const char* msg) {
-    FILE* f = fopen(REPORT_FILE, "a");
-    if (f) {
-        time_t now = time(NULL);
-        char *t_str = ctime(&now); t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [STAFF]-> %s\n", t_str, msg);
-        fclose(f);
-    }
-}
-
 void signal_handler(int sig) {
     if (sig == SIG_DOUBLE_X3)
         flag_triple = 1;
@@ -52,9 +42,8 @@ int main() {
     unlock_tables(semid);
 
     MenagerOrderMsg ready;
-    ready.mtype = 999;
+    ready.mtype = MSG_READY_SYNC;
     msgsnd(msgid, &ready, sizeof(MenagerOrderMsg) - sizeof(long), 0);
-    log_action("Gotowy.");
 
     PaymentMsg food_req;
     MenagerOrderMsg msg;
@@ -84,7 +73,7 @@ int main() {
                     shm->table_count++;
                 }
                 shm->x3_tripled = 1;
-                log_action("Podwojono stoliki.");
+                write_log("STAFF", "Podwojono stoliki.");
                 added_seats = added_tables * 2;
             }
             unlock_tables(semid);
@@ -102,8 +91,7 @@ int main() {
         if (flag_reserve)
             flag_reserve = 0;
 
-        int loop_limiter = 0;
-        while(loop_limiter++ < 50 && msgrcv(msgid, &food_req, sizeof(PaymentMsg)-sizeof(long), MSG_TYPE_ORDER_FOOD, IPC_NOWAIT) != -1) {
+        while(msgrcv(msgid, &food_req, sizeof(PaymentMsg)-sizeof(long), MSG_TYPE_ORDER_FOOD, IPC_NOWAIT) > 0) {
             food_req.mtype = food_req.client_pid;
             msgsnd(msgid, &food_req, sizeof(PaymentMsg)-sizeof(long), 0);
             if (fifo_fd != -1) write(fifo_fd, &byte, 1);
@@ -120,12 +108,14 @@ int main() {
                 }
             }
             unlock_tables(semid);
-            char buf[64]; sprintf(buf, "Zarezerwowano %d.", reserved_cnt);
-            log_action(buf);
+            char buf[64];
+            sprintf(buf, "Zarezerwowano %d.", reserved_cnt);
+            write_log("STAFF", buf);
         }
     }
     
-    if (fifo_fd != -1) close(fifo_fd);
+    if (fifo_fd != -1)
+        close(fifo_fd);
     shmdt(shm);
     return 0;
 }

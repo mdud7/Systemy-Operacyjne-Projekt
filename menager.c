@@ -2,18 +2,6 @@
 #include <string.h>
 #include <fcntl.h>
 
-void log_menager(const char* msg) {
-    int fd = open(REPORT_FILE, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (fd != -1) {
-        char buf[256];
-        time_t now = time(NULL);
-        char *t_str = ctime(&now); t_str[strlen(t_str)-1] = '\0';
-        int len = sprintf(buf, "[%s] [MENAGER]-> %s\n", t_str, msg);
-        write(fd, buf, len);
-        close(fd);
-    }
-}
-
 void clear_stdin() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
@@ -30,18 +18,22 @@ int main() {
     int msgid_kasa = msgget(k_kasa, 0600);
 
     MenagerOrderMsg ready;
-    msgrcv(msgid, &ready, sizeof(MenagerOrderMsg) - sizeof(long), 999, 0);
-    log_menager("System gotowy.");
+    msgrcv(msgid, &ready, sizeof(MenagerOrderMsg) - sizeof(long), MSG_READY_SYNC, 0);
+    
+    write_log("MENAGER", "System gotow.");
 
     int running = 1;
     while(running) {
+
+        printf("\n[STATUS] Aktualna liczba stolików w barze: %d\n", shm->table_count);
+
         printf("\n===PANEL KIEROWNIKA===\n");
         printf("1. Podwoj stoliki (X3)\n");
         printf("2. Rezerwacja\n");
         printf("3. POZAR (Ewakuacja)\n");
-        printf("4. Wydane posilki(FIFO)\n");
+        printf("4. Wydane dania(FIFO)\n");
         printf("5. WYGENERUJ NOWYCH KLIENTÓW (5000 Klientow)\n");
-        printf("0. Wyjscie\n> ");
+        printf("0. Wyjscie\n ");
         
         int choice;
         int result = scanf("%d", &choice);
@@ -61,20 +53,22 @@ int main() {
             case 1:
                 kill(shm->staff_pid, SIG_DOUBLE_X3);
                 printf("[INFO] Wyslano polecenie podwojenia\n");
-                log_menager("Polecenie podwojenia X3.");
+                write_log("MENAGER", "wyslano polecenie podwojenia X3.");
                 break;
             case 2: {
-                printf("Podaj liczbe stolikow do rezerwacji: ");
+                int safe_limit = shm->table_count - 1;
+                printf("Podaj liczbe stolikow do rezerwacji od 1 do %d: ", safe_limit);
                 int n;
                 if (scanf("%d", &n) == 1) {
-                    if (n > 0 && n <= MAX_TABLES) {
+                    if (n > 0 && n < shm->table_count) {
                         MenagerOrderMsg msg;
                         msg.mtype=1;
                         msg.count=n;
                         msgsnd(msgid, &msg, sizeof(MenagerOrderMsg)-sizeof(long), 0);
                         kill(shm->staff_pid, SIG_RESERVE);
-                        log_menager("Polecenie Rezerwacji");
-                    } else printf("[BLAD] Zly zakres\n");
+                        write_log("MENAGER", "Polecenie Rezerwacji");
+                    } else 
+                        printf("[BLAD] Zly zakres\n");
                 } else {
                     printf("[BLAD] Zla wartosc\n");
                 }
@@ -110,14 +104,14 @@ int main() {
                 if (shm->generator_pid > 0) {
                     printf("Wysylam sygnal nowej fali do Generatora...\n");
                     kill(shm->generator_pid, SIG_NEW_WAVE);
-                    log_menager("Nowa fala 5000 klientow.");
+                    write_log("MENAGER", "Nowa fala klientow.");
                 } else {
                     printf("Blad: Nie znam PID generatora.\n");
                 }
                 break;
             case 0:
                 shm->stop_simulation = 1;
-                log_menager("Zamykanie..");
+                write_log("MENAGER", "Zamykanie systemu...");
                 kill(getppid(), SIGTERM);
                 running = 0;
                 break;

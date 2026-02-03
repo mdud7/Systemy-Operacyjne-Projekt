@@ -1,15 +1,4 @@
 #include "common.h"
-#include <string.h>
-
-void log_cashier(const char* msg) {
-    FILE* f = fopen(REPORT_FILE, "a");
-    if (f) {
-        time_t now = time(NULL);
-        char *t_str = ctime(&now); t_str[strlen(t_str)-1] = '\0';
-        fprintf(f, "[%s] [KASJER]-> %s\n", t_str, msg);
-        fclose(f);
-    }
-}
 
 int main() {
     key_t k_shm = get_key(PROJ_ID_SHM);
@@ -18,8 +7,6 @@ int main() {
     int msgid = msgget(k_kasa, 0600);
     int shmid = shmget(k_shm, sizeof(BarSharedMemory), 0600);
     BarSharedMemory *shm = (BarSharedMemory*)shmat(shmid, NULL, 0);
-
-    log_cashier("Kasa gotowa.");
 
     PaymentMsg msg;
     while (!shm->stop_simulation && !shm->fire_alarm) {

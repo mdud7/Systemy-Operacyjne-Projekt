@@ -25,21 +25,22 @@
 #define PROJ_ID_MSG 3
 #define PROJ_ID_KASA 4
 
-#define FIFO_FILE "kitchen_stats_fifo"
+#define FIFO_FILE "posilki_wydane_fifo"
 #define REPORT_FILE "raport_bar.txt"
 
-#define MAX_TABLES 100
+#define MAX_TABLES 40
 #define MSG_END_WORK 999
+#define MSG_READY_SYNC 998
+#define WAVE_SIZE 5000
 
 #define SIG_DOUBLE_X3 SIGUSR1 
 #define SIG_RESERVE   SIGUSR2
-#define SIG_FIRE      SIGRTMIN
-#define SIG_NEW_WAVE  SIGRTMIN+1
+#define SIG_FIRE      SIGPWR
+#define SIG_NEW_WAVE  SIGALRM
 
-#define SEM_ACCESS 0         
-#define SEM_QUEUE_LIMITER 1  
-#define SEM_BARRIER 2        
-#define SEM_COUNT 3          
+#define SEM_ACCESS 0
+#define SEM_QUEUE_LIMITER 1
+#define SEM_COUNT 2
 
 #define MSG_TYPE_PAYMENT 1     
 #define MSG_TYPE_ORDER_FOOD 2  
@@ -103,6 +104,23 @@ static key_t get_key(int proj_id) {
         exit(1);
     }
     return key;
+}
+
+static void write_log(const char* source_tag, const char* msg) {
+    
+    int fd = open(REPORT_FILE, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (fd == -1)
+        return;
+
+    char buffer[512];
+    time_t now = time(NULL);
+    char *t_str = ctime(&now);
+    t_str[strlen(t_str)-1] = '\0';
+
+    int len = sprintf(buffer, "[%s] [%s]-> %s\n", t_str, source_tag, msg);
+
+    write(fd, buffer, len);
+    close(fd);
 }
 
 #endif

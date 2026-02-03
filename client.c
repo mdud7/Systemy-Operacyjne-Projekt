@@ -1,6 +1,4 @@
 #include "common.h"
-#include <string.h>
-#include <pthread.h>
 
 typedef struct {
     int id;
@@ -8,17 +6,6 @@ typedef struct {
     int msgid_kasa;
     int msgid_staff;
 } ThreadArg;
-
-void log_thread(const char* msg, int pid, int thread_id) {
-    FILE *f = fopen(REPORT_FILE, "a");
-    if (f) {
-        time_t now = time(NULL);
-        char* t_str = ctime(&now);
-        t_str[strlen(t_str) -1] = '\0';
-        fprintf(f, "[%s] [KLIENT %d.%d]-> %s\n", t_str, pid, thread_id, msg);
-        fclose(f);
-    }
-}
 
 void* client_thread_action(void* arg) {
     ThreadArg* data = (ThreadArg*)arg;
@@ -49,7 +36,9 @@ void* client_thread_action(void* arg) {
         return NULL;
     }
 
-    log_thread("Zjadlem i wychodze.", data->pid, data->id);
+    char tag[32];
+    sprintf(tag, "KLIENT %d.%d", data->pid, data->id);
+    write_log(tag, "Zjadlem i czekam na reszte.");
     free(data);
     return NULL;
 }
@@ -81,15 +70,14 @@ int main(int argc, char *argv[]) {
 
     enter_queue(semid);
 
+    char tag_proc[32];
+    sprintf(tag_proc, "KLIENT_PROC %d", pid);
+    write_log(tag_proc, "Wchodze do baru jako proces.");
+
     if ((rand() % 100) < 5) {
-        FILE *f = fopen(REPORT_FILE, "a");
-        if (f) {
-            time_t now = time(NULL);
-            char* t_str = ctime(&now);
-            t_str[strlen(t_str) -1] = '\0';
-            fprintf(f, "[%s] [KLIENT_PROC %d]-> Rezygnacja na wejsciu, wychodze 5 procent.\n", t_str, pid);
-            fclose(f);
-        }
+        char tag[32];
+        sprintf(tag, "KLIENT_PROC %d", pid);
+        write_log(tag, "Rezygnacja na wejsciu, wychodze 5 procent.");
         leave_queue(semid);
         shmdt(shm);
         return 0;
@@ -154,8 +142,12 @@ int main(int argc, char *argv[]) {
     }
     for(int i = 0; i < group; i++)
         pthread_join(threads[i], NULL);
-        
+
     free(threads);
+
+    char exit_log[128];
+    sprintf(exit_log, "Cala grupa (%d osob) skonczyla jesc, wychodzimy.", group, idx);
+    write_log(tag_proc, exit_log);
 
     if(!shm->fire_alarm) {
         lock_tables(semid);
